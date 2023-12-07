@@ -1,4 +1,4 @@
-import Transaction from "../domain/transaction";
+import Transaction from "../domain/transaction.entity";
 import PaymentGateway from "../gateway/payment.gateway";
 import TransactionModel from "./transaction.model";
 
