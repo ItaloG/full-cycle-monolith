@@ -9,10 +9,10 @@ export default class ProductRepository implements ProductGateway {
     return products.map(
       (product) =>
         new Product({
-          id: new Id(product.dataValues.id),
-          name: product.dataValues.name,
-          description: product.dataValues.description,
-          salesPrice: product.dataValues.salesPrice,
+          id: new Id(product.id),
+          name: product.name,
+          description: product.description,
+          salesPrice: product.salesPrice,
         })
     );
   }
@@ -24,10 +24,10 @@ export default class ProductRepository implements ProductGateway {
     });
 
     return new Product({
-      id: new Id(product.dataValues.id),
-      name: product.dataValues.name,
-      description: product.dataValues.description,
-      salesPrice: product.dataValues.salesPrice,
+      id: new Id(product.id),
+      name: product.name,
+      description: product.description,
+      salesPrice: product.salesPrice,
     });
   }
 }

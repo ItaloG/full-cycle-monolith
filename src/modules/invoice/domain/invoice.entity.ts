@@ -1,4 +1,4 @@
-import Address from "../../@shared/domain/entity/address";
+import Address from "../../@shared/domain/value-object/address";
 import AggregateRoot from "../../@shared/domain/entity/aggregate-root.interface";
 import BaseEntity from "../../@shared/domain/entity/base.entity";
 import Id from "../../@shared/domain/value-object/id.value-object";
@@ -45,8 +45,7 @@ export default class Invoice extends BaseEntity implements AggregateRoot {
   }
 
   calcTotal(): number {
-    let total = 0;
-    this._items.reduce((acc, value) => acc + value.price, total);
+    const total = this._items.reduce((acc, value) => acc + value.price, 0);
     return total;
   }
 }
