@@ -1,21 +1,15 @@
 import {
   Column,
-  HasMany,
   Model,
   PrimaryKey,
-  Table,
+  Table
 } from "sequelize-typescript";
-import InvoiceItem from "../domain/invoice-item.entity";
-import { InvoiceItemModel } from "./invoice-item.model";
 
 @Table({ tableName: "invoice", timestamps: false })
 export class InvoiceModel extends Model {
   @PrimaryKey
   @Column({ allowNull: false })
   declare id: string;
-
-  @HasMany(() => InvoiceItemModel)
-  declare items: InvoiceItem[];
 
   @Column({ allowNull: false })
   declare name: string;
@@ -44,6 +38,6 @@ export class InvoiceModel extends Model {
   @Column({ allowNull: false })
   declare createdAt: string;
 
-  @Column({ allowNull: false })
+  @Column({ allowNull: true })
   declare updatedAt: string;
 }
