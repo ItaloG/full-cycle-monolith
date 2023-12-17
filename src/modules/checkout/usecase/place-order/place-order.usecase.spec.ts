@@ -8,7 +8,7 @@ const mockDate = new Date(2000, 1, 1);
 describe("PlaceOrderUseCase unit test", () => {
   describe("validateProducts method", () => {
     //@ts-expect-error - no params in constructor
-    const placeOrderUSeCase = new PlaceOrderUseCase();
+    const placeOrderUseCase = new PlaceOrderUseCase();
 
     it("should throw error if no products are selected", async () => {
       const input: PlaceOrderInputDto = {
@@ -17,7 +17,7 @@ describe("PlaceOrderUseCase unit test", () => {
       };
 
       await expect(
-        placeOrderUSeCase["validateProducts"](input)
+        placeOrderUseCase["validateProducts"](input)
       ).rejects.toThrow(new Error("No products selected"));
     });
 
@@ -32,7 +32,7 @@ describe("PlaceOrderUseCase unit test", () => {
       };
 
       //@ts-expect-error - force set productFacade
-      placeOrderUSeCase["_productFacade"] = mockProductFacade;
+      placeOrderUseCase["_productFacade"] = mockProductFacade;
 
       let input: PlaceOrderInputDto = {
         clientId: "0",
@@ -40,7 +40,7 @@ describe("PlaceOrderUseCase unit test", () => {
       };
 
       await expect(
-        placeOrderUSeCase["validateProducts"](input)
+        placeOrderUseCase["validateProducts"](input)
       ).rejects.toThrow(new Error("Product 1 id not available in stock"));
 
       input = {
@@ -49,7 +49,7 @@ describe("PlaceOrderUseCase unit test", () => {
       };
 
       await expect(
-        placeOrderUSeCase["validateProducts"](input)
+        placeOrderUseCase["validateProducts"](input)
       ).rejects.toThrow(new Error("Product 1 id not available in stock"));
       expect(mockProductFacade.checkStock).toHaveBeenCalledTimes(3);
 
@@ -59,7 +59,7 @@ describe("PlaceOrderUseCase unit test", () => {
       };
 
       await expect(
-        placeOrderUSeCase["validateProducts"](input)
+        placeOrderUseCase["validateProducts"](input)
       ).rejects.toThrow(new Error("Product 1 id not available in stock"));
       expect(mockProductFacade.checkStock).toHaveBeenCalledTimes(5);
     });
@@ -118,18 +118,27 @@ describe("PlaceOrderUseCase unit test", () => {
   });
 
   describe("execute method", () => {
+    beforeAll(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(mockDate);
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
+
     it("should throw an error when client not found", async () => {
       const mockClientFacade = {
         find: jest.fn().mockResolvedValue(null),
       };
       //@ts-expect-error - no params in constructor
-      const placeOrderUSeCase = new PlaceOrderUseCase();
+      const placeOrderUseCase = new PlaceOrderUseCase();
       //@ts-expect-error - force set clientFacade
-      placeOrderUSeCase["_clientFacade"] = mockClientFacade;
+      placeOrderUseCase["_clientFacade"] = mockClientFacade;
 
       const input: PlaceOrderInputDto = { clientId: "0", products: [] };
 
-      await expect(placeOrderUSeCase.execute(input)).rejects.toThrow(
+      await expect(placeOrderUseCase.execute(input)).rejects.toThrow(
         new Error("Client nor found")
       );
     });
@@ -139,21 +148,187 @@ describe("PlaceOrderUseCase unit test", () => {
         find: jest.fn().mockResolvedValue(true),
       };
       //@ts-expect-error - no params in constructor
-      const placeOrderUSeCase = new PlaceOrderUseCase();
+      const placeOrderUseCase = new PlaceOrderUseCase();
       const mockValidateProducts = jest
         //@ts-expect-error - spy on private method
-        .spyOn(placeOrderUSeCase, "validateProducts")
+        .spyOn(placeOrderUseCase, "validateProducts")
         //@ts-expect-error - not return nerver
         .mockRejectValue(new Error("No products selected"));
 
       //@ts-expect-error - force set clientFacade
-      placeOrderUSeCase["_clientFacade"] = mockClientFacade;
+      placeOrderUseCase["_clientFacade"] = mockClientFacade;
 
       const input: PlaceOrderInputDto = { clientId: "1", products: [] };
-      await expect(placeOrderUSeCase.execute(input)).rejects.toThrow(
+      await expect(placeOrderUseCase.execute(input)).rejects.toThrow(
         new Error("No products selected")
       );
       expect(mockValidateProducts).toHaveBeenCalledTimes(1);
+    });
+
+    describe("place an order", () => {
+      const clientProps = {
+        id: "1c",
+        name: "Client 0",
+        document: "0000",
+        email: "client@user.com",
+        street: "some address",
+        number: "1",
+        complement: "",
+        city: "some city",
+        state: "some state",
+        zipCode: "000",
+      };
+
+      const mockClientFacade = {
+        find: jest.fn().mockResolvedValue(clientProps),
+        add: jest.fn(),
+      };
+
+      const mockPaymentFacade = {
+        process: jest.fn(),
+      };
+
+      const mockCheckoutRepo = {
+        addOrder: jest.fn(),
+      };
+
+      const mockInvoiceFacade = {
+        create: jest.fn().mockResolvedValue({ id: "1i" }),
+      };
+
+      const placeOrderUseCase = new PlaceOrderUseCase(
+        mockClientFacade,
+        null,
+        null,
+        mockCheckoutRepo as any,
+        mockInvoiceFacade as any,
+        mockPaymentFacade
+      );
+
+      const products = {
+        "1": new Product({
+          id: new Id("1"),
+          description: "some description",
+          name: "Product 1",
+          salesPrice: 40,
+        }),
+        "2": new Product({
+          id: new Id("2"),
+          description: "some description",
+          name: "Product 2",
+          salesPrice: 30,
+        }),
+      };
+
+      const mockValidateProducts = jest
+        //@ts-expect-error - spy on private method
+        .spyOn(placeOrderUseCase, "validateProducts")
+        //@ts-expect-error - spy on private method
+        .mockResolvedValue(null);
+
+      const mockGetPRoduct = jest
+        //@ts-expect-error - spy on private method
+        .spyOn(placeOrderUseCase, "getProduct")
+        //@ts-expect-error - spy on private method
+        .mockImplementation((productId: keyof typeof products) => {
+          return products[productId];
+        });
+
+      it("should not be approved", async () => {
+        mockPaymentFacade.process = mockPaymentFacade.process.mockReturnValue({
+          transactionId: "1t",
+          orderId: "1o",
+          amount: 100,
+          status: "error",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const input: PlaceOrderInputDto = {
+          clientId: "1c",
+          products: [{ productId: "1" }, { productId: "2" }],
+        };
+
+        let output = await placeOrderUseCase.execute(input);
+
+        expect(output.invoiceId).toBeNull();
+        expect(output.total).toBe(70);
+        expect(output.products).toStrictEqual([
+          { productId: "1" },
+          { productId: "2" },
+        ]);
+        expect(mockClientFacade.find).toHaveBeenCalledTimes(1);
+        expect(mockClientFacade.find).toHaveBeenCalledWith({ id: "1c" });
+        expect(mockValidateProducts).toHaveBeenCalledTimes(1);
+        expect(mockValidateProducts).toHaveBeenCalledWith(input);
+        expect(mockGetPRoduct).toHaveBeenCalledTimes(2);
+        expect(mockCheckoutRepo.addOrder).toHaveBeenCalledTimes(1);
+        expect(mockPaymentFacade.process).toHaveBeenCalledTimes(1);
+        expect(mockPaymentFacade).toHaveBeenCalledWith({
+          orderId: output.id,
+          amount: output.total,
+        });
+
+        expect(mockInvoiceFacade.create).toHaveBeenCalledTimes(0);
+      });
+
+      it("should be approved", async () => {
+        mockPaymentFacade.process = mockPaymentFacade.process.mockReturnValue({
+          transactionId: "1t",
+          orderId: "1o",
+          amount: 100,
+          status: "approved",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const input: PlaceOrderInputDto = {
+          clientId: "1c",
+          products: [{ productId: "1" }, { productId: "2" }],
+        };
+
+        let output = await placeOrderUseCase.execute(input);
+
+        expect(output.invoiceId).toBe("1i");
+        expect(output.total).toBe(70);
+        expect(output.products).toStrictEqual([
+          { productId: "1" },
+          { productId: "2" },
+        ]);
+        expect(mockClientFacade.find).toHaveBeenCalledTimes(1);
+        expect(mockClientFacade.find).toHaveBeenCalledWith({ id: "1c" });
+        expect(mockValidateProducts).toHaveBeenCalledTimes(1);
+        expect(mockGetPRoduct).toHaveBeenCalledTimes(2);
+        expect(mockCheckoutRepo.addOrder).toHaveBeenCalledTimes(1);
+        expect(mockPaymentFacade.process).toHaveBeenCalledTimes(1);
+        expect(mockPaymentFacade).toHaveBeenCalledWith({
+          orderId: output.id,
+          amount: output.total,
+        });
+        expect(mockInvoiceFacade.create).toHaveBeenCalledTimes(1);
+        expect(mockInvoiceFacade.create).toHaveBeenCalledWith({
+          city: clientProps.city,
+          complement: clientProps.complement,
+          document: clientProps,
+          items: [
+            {
+              id: products["1"].id.id,
+              name: products["1"].name,
+              price: products["1"].salesPrice,
+            },
+            {
+              id: products["2"].id.id,
+              name: products["2"].name,
+              price: products["2"].salesPrice,
+            },
+          ],
+          name: clientProps,
+          number: clientProps.number,
+          state: clientProps.state,
+          street: clientProps.street,
+          zipCode: clientProps.zipCode,
+        });
+      });
     });
   });
 });
